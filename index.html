@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SCHEDULE ZERO — A Product Empire Sim</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div id="boot" class="boot">
+  <div class="boot-card">
+    <h1 class="logo">SCHEDULE&nbsp;<span>ZERO</span></h1>
+    <p class="tag">Build the empire. Beat the heat. Don't get caught.</p>
+    <p class="credit">A Schedule&nbsp;1&nbsp;–style management sim · inspired by TVGS</p>
+    <button id="newGameBtn" class="btn btn-primary">New Game</button>
+    <button id="continueBtn" class="btn">Continue</button>
+    <p id="bootHint" class="hint"></p>
+  </div>
+</div>
+
+<div id="app" class="app hidden">
+  <!-- Top status bar -->
+  <header class="topbar">
+    <div class="brand">SCHEDULE&nbsp;<span>ZERO</span></div>
+    <div class="stats">
+      <div class="stat" title="Cash on hand">
+        <span class="stat-icon">$</span>
+        <span id="cash" class="stat-val">0</span>
+      </div>
+      <div class="stat" title="Reputation — unlocks better customers">
+        <span class="stat-icon">★</span>
+        <span id="rep" class="stat-val">0</span>
+      </div>
+      <div class="stat heat-stat" title="Police heat — keep it low or get busted">
+        <span class="stat-icon">🔥</span>
+        <div class="heatbar"><div id="heatFill" class="heatfill"></div></div>
+      </div>
+      <div class="stat" title="In-game day">
+        <span class="stat-icon">📅</span>
+        <span>Day </span><span id="day" class="stat-val">1</span>
+      </div>
+    </div>
+    <div class="controls">
+      <button id="advanceBtn" class="btn btn-primary" title="End the day (Space)">End Day ▶</button>
+      <button id="saveBtn" class="btn" title="Save game">Save</button>
+      <button id="menuBtn" class="btn" title="Quit to menu">Menu</button>
+    </div>
+  </header>
+
+  <!-- Tabs -->
+  <nav class="tabs">
+    <button class="tab active" data-tab="lab">🌱 Lab</button>
+    <button class="tab" data-tab="market">🤝 Market</button>
+    <button class="tab" data-tab="crew">👥 Crew</button>
+    <button class="tab" data-tab="shop">🛒 Upgrades</button>
+    <button class="tab" data-tab="stats">📊 Stats</button>
+  </nav>
+
+  <main class="content">
+    <!-- LAB -->
+    <section id="tab-lab" class="panel active">
+      <div class="panel-head">
+        <h2>Production Lab</h2>
+        <div class="inv-pill">Inventory: <strong id="invCount">0</strong> / <span id="invCap">0</span> units</div>
+      </div>
+      <p class="muted">Buy supplies, start a batch, wait for it to mature, then harvest packaged units to sell.</p>
+      <div class="supply-row">
+        <button id="buySupplyBtn" class="btn">Buy Supplies (<span id="supplyCost">0</span>) </button>
+        <span class="muted">Supplies: <strong id="supplies">0</strong></span>
+      </div>
+      <div id="stationGrid" class="station-grid"></div>
+    </section>
+
+    <!-- MARKET -->
+    <section id="tab-market" class="panel">
+      <div class="panel-head">
+        <h2>The Market</h2>
+        <div class="inv-pill">Street price: <strong>$<span id="streetPrice">0</span></strong>/unit</div>
+      </div>
+      <p class="muted">Sell directly to walk-up customers. Higher reputation attracts bigger buyers. Each sale adds a little heat.</p>
+      <div id="customerList" class="customer-list"></div>
+    </section>
+
+    <!-- CREW -->
+    <section id="tab-crew" class="panel">
+      <div class="panel-head"><h2>Your Crew</h2></div>
+      <p class="muted">Dealers sell inventory automatically each day for a cut. Lawyers reduce heat. Keep them paid or they walk.</p>
+      <div id="crewList" class="crew-list"></div>
+    </section>
+
+    <!-- SHOP -->
+    <section id="tab-shop" class="panel">
+      <div class="panel-head"><h2>Upgrades</h2></div>
+      <p class="muted">Permanent improvements to your operation.</p>
+      <div id="shopList" class="shop-list"></div>
+    </section>
+
+    <!-- STATS -->
+    <section id="tab-stats" class="panel">
+      <div class="panel-head"><h2>Operation Stats</h2></div>
+      <div id="statsBody" class="stats-body"></div>
+    </section>
+  </main>
+
+  <!-- Event log -->
+  <footer class="logbar">
+    <div class="log-title">📟 LOG</div>
+    <div id="log" class="log"></div>
+  </footer>
+</div>
+
+<!-- Modal -->
+<div id="modal" class="modal hidden">
+  <div class="modal-card">
+    <h2 id="modalTitle">Title</h2>
+    <p id="modalBody">Body</p>
+    <div id="modalActions" class="modal-actions"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="game.js"></script>
+</body>
+</html>
