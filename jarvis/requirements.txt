@@ -1,0 +1,13 @@
+# Core voice assistant dependencies
+SpeechRecognition>=3.10      # speech-to-text (uses Google Web Speech, no key)
+pyttsx3>=2.90                # offline text-to-speech via Windows SAPI5
+PyAudio>=0.2.13              # microphone access for SpeechRecognition
+pyautogui>=0.9.54            # screenshots, media keys, volume control
+
+# Optional but recommended
+anthropic>=0.40.0            # Claude-powered natural-language understanding
+psutil>=5.9.0                # system status reporting
+
+# Notes:
+# - On Windows, if PyAudio fails to install via pip, use: pip install pipwin && pipwin install pyaudio
+# - Set ANTHROPIC_API_KEY in your environment to enable full conversation.

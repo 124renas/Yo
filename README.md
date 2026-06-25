@@ -1,57 +1,90 @@
-# SCHEDULE ZERO
+# Jarvis — Voice Assistant for Windows
 
-A **Schedule 1–style management / tycoon game**, inspired by the TVGS title.
-The original is a first-person 3D empire-builder; this is a focused, fully
-playable browser take on its core loop — **produce, sell, manage heat, expand** —
-that runs with zero dependencies. Just open the file.
+A voice-activated personal assistant inspired by Jarvis. Say **"Jarvis"** (or
+**"Hey Jarvis"**), then give a command. It understands natural language, controls
+your PC, manages tasks, and answers questions — with a calm, concise British voice.
 
-> ⚠️ This is a fictional satirical business sim. "Product" is abstract; the game
-> is about the economy/management loop, not instructions for anything real.
+## Features
 
-## Play it
+- **Wake word** — listens for "Jarvis" / "Hey Jarvis", then acts on your command.
+- **Natural language understanding** — powered by Claude when an API key is set;
+  otherwise a built-in command parser still drives every system action.
+- **System control** — open apps, take screenshots, control media playback and
+  volume, lock the screen, shut down / restart.
+- **Web** — open websites, run web searches in your default browser.
+- **Task management** — add/list/complete to-dos and set reminders.
+- **Info** — time, date, and live system status (CPU / memory).
+- **Context retention** — remembers recent turns for natural follow-ups.
+- **Cross-platform** — built for Windows, with macOS fallbacks for most actions.
 
-Open `index.html` in any modern browser. That's it — no build, no server.
+## Quick start (Windows)
+
+1. Install **Python 3.10+** (tick "Add Python to PATH" during install).
+2. Install dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+   If `PyAudio` fails to build:
+   ```
+   pip install pipwin
+   pipwin install pyaudio
+   ```
+3. *(Optional, recommended)* Enable full conversation by setting your key:
+   ```
+   setx ANTHROPIC_API_KEY "your-key-here"
+   ```
+   (Open a new terminal afterwards so the variable takes effect.)
+4. Run it:
+   ```
+   run_jarvis.bat
+   ```
+   or `python jarvis.py`.
+
+## Usage
 
 ```
-git clone <repo>
-cd Yo
-# double-click index.html, or:
-python3 -m http.server   # then visit http://localhost:8000
+python jarvis.py            # voice mode (default)
+python jarvis.py --text     # type commands — no microphone needed
+python jarvis.py --once "open notepad"   # run one command and exit
 ```
 
-Your progress autosaves to the browser's `localStorage`.
+### Example commands
 
-## How it works
+- "Jarvis, what time is it?"
+- "Jarvis, open Spotify."
+- "Hey Jarvis, search for the weather in London."
+- "Jarvis, take a screenshot."
+- "Jarvis, next track." / "volume up" / "mute"
+- "Jarvis, add buy milk to my to-do list."
+- "Jarvis, remind me to call mum."
+- "Jarvis, lock the screen."
 
-The game runs **day by day**. Each turn you act, then hit **End Day** (or press
-`Space`) to advance time, let your crew work, trigger events, and face the
-police-bust check.
+With an API key set, you can also just talk naturally — "Jarvis, I need to jot
+down that the deck is due Friday" — and it figures out the right action.
 
-| System | What it does |
-| --- | --- |
-| **🌱 Lab** | Buy supplies, plant batches in grow stations, wait for them to mature, then harvest packaged units into your stash. |
-| **🤝 Market** | Sell directly to walk-up customers. Bigger buyers unlock as reputation grows, but each sale adds **heat**. |
-| **👥 Crew** | Hire **dealers** to auto-sell inventory for a cut, and **lawyers/cleaners** to shed heat. Miss payroll and they walk. |
-| **🛒 Upgrades** | Permanent boosts: more stations, faster grows, better yield/quality, more storage, bust resistance, faster heat decay. |
-| **📊 Stats** | Career earnings, units sold, days survived, times raided. |
+## Project layout
 
-### The tension
-- **Heat** rises with every sale and large operation. Keep it low.
-- High heat → rising chance of a **police raid** that seizes cash and product.
-- Heat decays daily; lawyers, cleaners, and the Laundromat upgrade speed that up.
-- Three raids with nothing left to your name = **game over**.
+```
+jarvis/
+  jarvis.py            # entry point + wake-word loop
+  brain.py             # NLU: Claude tool-use, with a rule-based fallback
+  voice.py             # speech recognition (STT) + British text-to-speech
+  config.py            # all tunable settings
+  skills/
+    system_control.py  # apps, screenshots, media, volume, power
+    web.py             # websites + search
+    tasks.py           # to-dos and reminders (JSON-persisted)
+    info.py            # time, date, system status
+  requirements.txt
+  run_jarvis.bat       # Windows launcher
+```
 
-### Progression
-Reputation unlocks stronger strains (higher value), bigger customers, and better
-crew. Reinvest profits into upgrades to scale from a single backyard station to a
-full warehouse operation.
+## Notes
 
-## Files
-- `index.html` — layout & screens
-- `style.css` — styling/theme
-- `game.js` — all game logic (state, production, market, crew, upgrades, day loop, save/load)
-
-## Controls
-- **Space / Enter** — End Day
-- **Save** — manual save (also autosaves each day)
-- **Menu** — back to title screen
+- Speech recognition uses Google's free Web Speech API (no key, needs internet).
+- Text-to-speech is fully offline via Windows SAPI5; it prefers a British voice
+  (e.g. "Hazel"/"George") if one is installed.
+- Without `ANTHROPIC_API_KEY`, Jarvis runs in command mode — all system controls
+  work, but free-form conversation and general Q&A are disabled.
+- Disruptive actions (shutdown/restart) run on a 20-second delay; say
+  "cancel shutdown" to abort.
