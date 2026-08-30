@@ -1,126 +1,196 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>SCHEDULE ZERO — A Product Empire Sim</title>
-<link rel="stylesheet" href="style.css" />
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0b0f14" />
+<title>Scoot Unlock — Xiaomi 4 Lite</title>
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-<div id="boot" class="boot">
-  <div class="boot-card">
-    <h1 class="logo">SCHEDULE&nbsp;<span>ZERO</span></h1>
-    <p class="tag">Build the empire. Beat the heat. Don't get caught.</p>
-    <p class="credit">A Schedule&nbsp;1&nbsp;–style management sim · inspired by TVGS</p>
-    <button id="newGameBtn" class="btn btn-primary">New Game</button>
-    <button id="continueBtn" class="btn">Continue</button>
-    <p id="bootHint" class="hint"></p>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="mark"></span>
+    <div>
+      <h1>Scoot Unlock</h1>
+      <p class="sub" id="profileLabel">Xiaomi Electric Scooter 4 Lite (2nd gen)</p>
+    </div>
+  </div>
+  <div class="link-state" id="linkState" data-state="offline">
+    <span class="dot"></span><span id="linkText">Not connected</span>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab is-active" data-panel="connect" role="tab">Connect</button>
+  <button class="tab" data-panel="speed" role="tab">Speed</button>
+  <button class="tab" data-panel="discovery" role="tab">Discovery</button>
+  <button class="tab" data-panel="console" role="tab">Console</button>
+</nav>
+
+<main>
+  <!-- ---------------------------------------------------------------- Connect -->
+  <section class="panel is-active" id="panel-connect">
+    <div class="card">
+      <h2>Scooter</h2>
+      <label class="field">
+        <span>Model profile</span>
+        <select id="profileSelect"></select>
+      </label>
+      <p class="hint" id="profileNote"></p>
+      <div class="row">
+        <button class="btn btn-primary" id="connectBtn">Connect over Bluetooth</button>
+        <button class="btn" id="simulatorBtn">Use simulator</button>
+      </div>
+      <button class="btn btn-quiet" id="disconnectBtn" hidden>Disconnect</button>
+      <p class="hint" id="connectHint"></p>
+    </div>
+
+    <div class="card" id="identityCard" hidden>
+      <h2>Identity</h2>
+      <dl class="kv" id="identityList"></dl>
+      <button class="btn btn-quiet" id="readIdentityBtn">Re-read</button>
+    </div>
+
+    <div class="card note-card">
+      <h2>Before you start</h2>
+      <ul class="notes">
+        <li>Needs Chrome or Edge (Android, Windows, macOS, Linux, ChromeOS). iOS Safari has no Web Bluetooth — use Bluefy.</li>
+        <li>Close the Xiaomi Home app first. The scooter accepts one BLE connection at a time.</li>
+        <li>Raised limits are for private land in most jurisdictions, and they void the warranty.</li>
+        <li>Every write is logged with its previous value, and <strong>Revert</strong> puts it all back.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------------ Speed -->
+  <section class="panel" id="panel-speed">
+    <div class="card">
+      <h2>Current limits</h2>
+      <div class="limits" id="currentLimits"><p class="hint">Connect to read the scooter's limits.</p></div>
+      <button class="btn btn-quiet" id="refreshLimitsBtn">Refresh</button>
+    </div>
+
+    <div class="card">
+      <h2>Profiles</h2>
+      <div id="profileList" class="profiles"></div>
+    </div>
+
+    <div class="card">
+      <h2>Changes</h2>
+      <p class="hint">Everything written this session, with the value it replaced.</p>
+      <div id="changeLog" class="log-list"><p class="hint">No changes yet.</p></div>
+      <div class="row">
+        <button class="btn btn-danger" id="revertBtn" disabled>Revert everything</button>
+        <button class="btn btn-quiet" id="exportChangesBtn">Export log</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <label class="toggle">
+        <input type="checkbox" id="expertToggle" />
+        <span>
+          <strong>Expert mode</strong>
+          <em>Allow writes to addresses that have not been confirmed on this scooter. A wrong address does not
+          raise the limit — it writes into whatever else lives there.</em>
+        </span>
+      </label>
+    </div>
+  </section>
+
+  <!-- -------------------------------------------------------------- Discovery -->
+  <section class="panel" id="panel-discovery">
+    <div class="card">
+      <h2>Find your real registers</h2>
+      <ol class="steps">
+        <li>Sweep the address space to see what answers.</li>
+        <li>Take snapshot <strong>A</strong>.</li>
+        <li>Change the drive mode or speed limit in the official app, or on the scooter itself.</li>
+        <li>Take snapshot <strong>B</strong> and diff. Whatever moved is your speed register.</li>
+      </ol>
+      <div class="row">
+        <label class="field compact"><span>From</span><input id="sweepFrom" value="0x00" /></label>
+        <label class="field compact"><span>To</span><input id="sweepTo" value="0xFF" /></label>
+        <label class="field compact">
+          <span>Device</span>
+          <select id="sweepDevice">
+            <option value="32">ESC</option>
+            <option value="33">BLE</option>
+            <option value="34">BMS</option>
+          </select>
+        </label>
+      </div>
+      <div class="row">
+        <button class="btn btn-primary" id="sweepBtn">Sweep</button>
+        <button class="btn" id="cancelSweepBtn" hidden>Cancel</button>
+      </div>
+      <div class="progress" id="sweepProgress" hidden><div class="bar"></div><span></span></div>
+      <div id="sweepResults" class="grid-map"></div>
+    </div>
+
+    <div class="card">
+      <h2>Snapshot &amp; diff</h2>
+      <div class="row">
+        <button class="btn" id="snapABtn" disabled>Snapshot A</button>
+        <button class="btn" id="snapBBtn" disabled>Snapshot B</button>
+        <button class="btn btn-primary" id="diffBtn" disabled>Diff</button>
+      </div>
+      <div id="diffResults"><p class="hint">Sweep first, then take two snapshots either side of a change.</p></div>
+    </div>
+
+    <div class="card">
+      <h2>Export</h2>
+      <p class="hint">
+        Sweeps, snapshots and diffs as JSON. This is the file to send back if you want the address map
+        folded into the app — see <code>docs/NEEDED-INFO.md</code>.
+      </p>
+      <button class="btn" id="exportDiscoveryBtn">Download discovery JSON</button>
+    </div>
+  </section>
+
+  <!-- ---------------------------------------------------------------- Console -->
+  <section class="panel" id="panel-console">
+    <div class="card">
+      <h2>Manual register access</h2>
+      <div class="row">
+        <label class="field compact"><span>Address</span><input id="manualAddr" value="0x74" /></label>
+        <label class="field compact"><span>Bytes</span><input id="manualLen" value="2" /></label>
+        <label class="field compact"><span>Value</span><input id="manualValue" placeholder="decimal" /></label>
+      </div>
+      <div class="row">
+        <button class="btn" id="manualReadBtn">Read</button>
+        <button class="btn btn-danger" id="manualWriteBtn">Write</button>
+      </div>
+      <p class="hint" id="manualResult"></p>
+    </div>
+
+    <div class="card">
+      <h2>Traffic</h2>
+      <div class="row">
+        <button class="btn btn-quiet" id="clearLogBtn">Clear</button>
+        <button class="btn btn-quiet" id="exportLogBtn">Export</button>
+        <label class="toggle inline"><input type="checkbox" id="autoscroll" checked /><span>Autoscroll</span></label>
+      </div>
+      <pre id="trafficLog" class="traffic"></pre>
+    </div>
+  </section>
+</main>
+
+<div class="modal-backdrop" id="modalBackdrop" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <h2 id="modalTitle"></h2>
+    <div id="modalBody"></div>
+    <div class="row modal-actions">
+      <button class="btn btn-quiet" id="modalCancel">Cancel</button>
+      <button class="btn btn-danger" id="modalConfirm">Confirm</button>
+    </div>
   </div>
 </div>
 
-<div id="app" class="app hidden">
-  <!-- Top status bar -->
-  <header class="topbar">
-    <div class="brand">SCHEDULE&nbsp;<span>ZERO</span></div>
-    <div class="stats">
-      <div class="stat" title="Cash on hand">
-        <span class="stat-icon">$</span>
-        <span id="cash" class="stat-val">0</span>
-      </div>
-      <div class="stat" title="Reputation — unlocks better customers">
-        <span class="stat-icon">★</span>
-        <span id="rep" class="stat-val">0</span>
-      </div>
-      <div class="stat heat-stat" title="Police heat — keep it low or get busted">
-        <span class="stat-icon">🔥</span>
-        <div class="heatbar"><div id="heatFill" class="heatfill"></div></div>
-      </div>
-      <div class="stat" title="In-game day">
-        <span class="stat-icon">📅</span>
-        <span>Day </span><span id="day" class="stat-val">1</span>
-      </div>
-    </div>
-    <div class="controls">
-      <button id="advanceBtn" class="btn btn-primary" title="End the day (Space)">End Day ▶</button>
-      <button id="saveBtn" class="btn" title="Save game">Save</button>
-      <button id="menuBtn" class="btn" title="Quit to menu">Menu</button>
-    </div>
-  </header>
+<div id="toasts" class="toasts"></div>
 
-  <!-- Tabs -->
-  <nav class="tabs">
-    <button class="tab active" data-tab="lab">🌱 Lab</button>
-    <button class="tab" data-tab="market">🤝 Market</button>
-    <button class="tab" data-tab="crew">👥 Crew</button>
-    <button class="tab" data-tab="shop">🛒 Upgrades</button>
-    <button class="tab" data-tab="stats">📊 Stats</button>
-  </nav>
-
-  <main class="content">
-    <!-- LAB -->
-    <section id="tab-lab" class="panel active">
-      <div class="panel-head">
-        <h2>Production Lab</h2>
-        <div class="inv-pill">Inventory: <strong id="invCount">0</strong> / <span id="invCap">0</span> units</div>
-      </div>
-      <p class="muted">Buy supplies, start a batch, wait for it to mature, then harvest packaged units to sell.</p>
-      <div class="supply-row">
-        <button id="buySupplyBtn" class="btn">Buy Supplies (<span id="supplyCost">0</span>) </button>
-        <span class="muted">Supplies: <strong id="supplies">0</strong></span>
-      </div>
-      <div id="stationGrid" class="station-grid"></div>
-    </section>
-
-    <!-- MARKET -->
-    <section id="tab-market" class="panel">
-      <div class="panel-head">
-        <h2>The Market</h2>
-        <div class="inv-pill">Street price: <strong>$<span id="streetPrice">0</span></strong>/unit</div>
-      </div>
-      <p class="muted">Sell directly to walk-up customers. Higher reputation attracts bigger buyers. Each sale adds a little heat.</p>
-      <div id="customerList" class="customer-list"></div>
-    </section>
-
-    <!-- CREW -->
-    <section id="tab-crew" class="panel">
-      <div class="panel-head"><h2>Your Crew</h2></div>
-      <p class="muted">Dealers sell inventory automatically each day for a cut. Lawyers reduce heat. Keep them paid or they walk.</p>
-      <div id="crewList" class="crew-list"></div>
-    </section>
-
-    <!-- SHOP -->
-    <section id="tab-shop" class="panel">
-      <div class="panel-head"><h2>Upgrades</h2></div>
-      <p class="muted">Permanent improvements to your operation.</p>
-      <div id="shopList" class="shop-list"></div>
-    </section>
-
-    <!-- STATS -->
-    <section id="tab-stats" class="panel">
-      <div class="panel-head"><h2>Operation Stats</h2></div>
-      <div id="statsBody" class="stats-body"></div>
-    </section>
-  </main>
-
-  <!-- Event log -->
-  <footer class="logbar">
-    <div class="log-title">📟 LOG</div>
-    <div id="log" class="log"></div>
-  </footer>
-</div>
-
-<!-- Modal -->
-<div id="modal" class="modal hidden">
-  <div class="modal-card">
-    <h2 id="modalTitle">Title</h2>
-    <p id="modalBody">Body</p>
-    <div id="modalActions" class="modal-actions"></div>
-  </div>
-</div>
-
-<!-- Toast -->
-<div id="toast" class="toast hidden"></div>
-
-<script src="game.js"></script>
+<script type="module" src="src/ui/app.js"></script>
 </body>
 </html>

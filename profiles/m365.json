@@ -1,0 +1,8 @@
+{
+  "id": "m365",
+  "label": "M365 / Pro / Essential / 1S (plaintext)",
+  "protocol": "m365",
+  "transport": { "preferService": "6e400001-b5a3-f393-e0a9-e50e24dcca9e" },
+  "session": { "type": "plaintext" },
+  "notes": "Older generation with an unencrypted BLE link. Included as a known-good reference target for validating the app's framing end to end."
+}

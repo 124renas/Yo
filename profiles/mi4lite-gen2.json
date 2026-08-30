@@ -1,0 +1,27 @@
+{
+  "id": "mi4lite-gen2",
+  "label": "Xiaomi Electric Scooter 4 Lite (2nd gen)",
+  "protocol": "nb",
+  "transport": { "preferService": "6e400001-b5a3-f393-e0a9-e50e24dcca9e" },
+
+  "session": {
+    "type": "nb-aes",
+    "mode": "ecb",
+
+    "//": "INCOMPLETE. The 2024 4-series negotiates an AES session key before it will accept any frame. The handshake below is empty on purpose: shipping guessed constants would produce a link that appears to work and silently corrupts writes to the controller. Record a real handshake with Discovery -> Capture handshake, then fill in the two arrays below. docs/NEEDED-INFO.md explains the format and what to send back.",
+
+    "handshake": [],
+    "keyRecipe": []
+  },
+
+  "registers": {
+    "//": "Derived registers found by snapshot diffing get written here by the app, and take precedence over the built-in guesses in src/proto/registers.js.",
+    "derived": []
+  },
+
+  "limits": {
+    "stockKmh": 25,
+    "hardCeilingKmh": 32,
+    "//": "hardCeilingKmh is the app's own refusal point, not a firmware value. The 4 Lite's drum/e-ABS braking and 8.5in tyres are specced around the 25 km/h stock limit."
+  }
+}

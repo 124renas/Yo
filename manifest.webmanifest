@@ -1,0 +1,18 @@
+{
+  "name": "Scoot Unlock — Xiaomi 4 Lite",
+  "short_name": "Scoot Unlock",
+  "description": "Read, tune and verify the speed limits on a Xiaomi electric scooter over Bluetooth.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0f14",
+  "theme_color": "#0b0f14",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%230b0f14'/%3E%3Cpath d='M52 128h18l24-64h20' stroke='%2345d9a6' stroke-width='11' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='58' cy='134' r='14' stroke='%2345d9a6' stroke-width='9' fill='none'/%3E%3Ccircle cx='140' cy='134' r='14' stroke='%2345d9a6' stroke-width='9' fill='none'/%3E%3Cpath d='M112 64h22' stroke='%2345d9a6' stroke-width='11' stroke-linecap='round'/%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
