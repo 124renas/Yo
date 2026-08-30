@@ -4,7 +4,7 @@ import { hex, hexBytes } from '../util.js';
 import { BleTransport, MockTransport } from '../ble/transport.js';
 import { Scooter } from '../core/scooter.js';
 import { Discovery } from '../core/discovery.js';
-import { Tuner, PROFILES } from '../core/tuning.js';
+import { Tuner, PROFILES, MODE_KEYS, customProfile } from '../core/tuning.js';
 import { Confidence, DEVICE_NAMES } from '../proto/registers.js';
 import { Addr } from '../proto/frame.js';
 import { IncompleteProfileError } from '../proto/session.js';
@@ -27,6 +27,8 @@ const state = {
   discovery: null,
   tuner: null,
   sweepResults: [],
+  currentLimits: new Map(), // key -> value as last read from the scooter
+  edited: new Map(),        // key -> value typed into the per-mode editor
   snapshots: { A: null, B: null },
   expertMode: false,
 };
@@ -164,6 +166,7 @@ function wireScooter(scooter) {
   });
   scooter.on('status', ({ detail }) => logTraffic('info', detail));
   scooter.on('disconnected', () => {
+    state.edited.clear();
     setLink('offline', 'Disconnected');
     toast('warn', 'The scooter dropped the connection.');
     $('disconnectBtn').hidden = true;
@@ -200,6 +203,11 @@ async function readIdentity() {
 
 function setupSpeed() {
   $('refreshLimitsBtn').addEventListener('click', refreshLimits);
+  $('applyCustomBtn').addEventListener('click', applyCustomLimits);
+  $('resetCustomBtn').addEventListener('click', () => {
+    state.edited.clear();
+    renderModeEditor();
+  });
   $('revertBtn').addEventListener('click', revertAll);
   $('exportChangesBtn').addEventListener('click', () =>
     download('scoot-unlock-changes.json', JSON.stringify(state.scooter?.changeLog ?? [], null, 2))
@@ -218,12 +226,16 @@ async function refreshLimits() {
   const container = $('currentLimits');
   if (!state.scooter) {
     container.replaceChildren(el('p', 'hint', 'Connect to read the scooter\'s limits.'));
+    state.currentLimits.clear();
+    renderModeEditor();
     return;
   }
 
   container.replaceChildren(el('p', 'hint', 'Reading…'));
   const results = await state.tuner.readCurrent();
   container.replaceChildren();
+
+  state.currentLimits = new Map(results.filter((r) => r.value !== null).map((r) => [r.def.key, r.value]));
 
   for (const { def, value } of results) {
     const card = el('div', 'limit');
@@ -242,6 +254,114 @@ async function refreshLimits() {
   }
 
   if (!results.length) container.append(el('p', 'hint', 'No speed registers mapped for this profile.'));
+
+  renderModeEditor();
+}
+
+// ------------------------------------------------------------ mode editor ---
+
+/**
+ * One slider + number box per drive mode. Values start at whatever the scooter
+ * reports and stay editable independently, so Drive 25 / Sport 40 is just two
+ * boxes rather than a preset someone has to have thought of in advance.
+ */
+function renderModeEditor() {
+  const container = $('modeEditor');
+  container.replaceChildren();
+
+  if (!state.scooter) {
+    container.append(el('p', 'hint', 'Connect to edit the limits.'));
+    $('applyCustomBtn').disabled = true;
+    return;
+  }
+
+  const ceiling = state.tuner.hardCeiling;
+  const warnAbove = state.tuner.warnAbove;
+  const defs = MODE_KEYS.map((key) => state.scooter.registers.find((r) => r.key === key)).filter(Boolean);
+
+  if (!defs.length) {
+    container.append(el('p', 'hint', 'No per-mode speed registers are mapped for this profile.'));
+    $('applyCustomBtn').disabled = true;
+    return;
+  }
+
+  for (const def of defs) {
+    const current = state.currentLimits.get(def.key) ?? null;
+    const value = state.edited.get(def.key) ?? current ?? 20;
+
+    const row = el('div', 'mode-row');
+    row.dataset.key = def.key;
+
+    const head = el('div', 'mode-head');
+    head.append(el('span', 'mode-name', def.label.replace('Speed limit — ', '')));
+    head.append(el('span', 'mode-current', current === null ? 'not read' : `now ${current} km/h`));
+    row.append(head);
+
+    const controls = el('div', 'mode-controls');
+    const slider = Object.assign(document.createElement('input'), {
+      type: 'range', min: 1, max: ceiling, step: 1, value,
+    });
+    const box = Object.assign(document.createElement('input'), {
+      type: 'number', min: 1, max: ceiling, step: 1, value,
+    });
+    slider.setAttribute('aria-label', `${def.label} slider`);
+    box.setAttribute('aria-label', def.label);
+
+    controls.append(slider, box, el('span', 'unit', 'km/h'));
+    row.append(controls);
+
+    const note = el('p', 'mode-note');
+    note.hidden = true;
+    row.append(note);
+
+    // Painting is separate from recording an edit, so simply rendering the row
+    // does not count as the user having asked for a change.
+    const paint = (raw) => {
+      const clamped = Math.min(ceiling, Math.max(1, Math.round(Number(raw) || 1)));
+      slider.value = clamped;
+      box.value = clamped;
+
+      row.classList.toggle('dirty', current !== null && clamped !== current);
+      row.classList.toggle('over', clamped > warnAbove);
+      note.hidden = clamped <= warnAbove;
+      note.textContent = clamped > warnAbove
+        ? `Past ~${warnAbove} km/h the motor, not this setting, decides the top speed.`
+        : '';
+      return clamped;
+    };
+
+    const edit = (raw) => {
+      const clamped = paint(raw);
+      state.edited.set(def.key, clamped);
+      $('applyCustomBtn').disabled = !hasPendingChange();
+    };
+
+    slider.addEventListener('input', () => edit(slider.value));
+    box.addEventListener('change', () => edit(box.value));
+    paint(value);
+
+    container.append(row);
+  }
+
+  $('applyCustomBtn').disabled = !hasPendingChange();
+}
+
+/** True when at least one edited value differs from what the scooter reports. */
+function hasPendingChange() {
+  return MODE_KEYS.some((k) => state.edited.has(k) && state.edited.get(k) !== state.currentLimits.get(k));
+}
+
+async function applyCustomLimits() {
+  if (!state.scooter) return toast('warn', 'Connect to a scooter first.');
+
+  const limits = Object.fromEntries(
+    MODE_KEYS.filter((k) => state.edited.has(k)).map((k) => [k, state.edited.get(k)])
+  );
+  const changed = Object.entries(limits).filter(([k, v]) => state.currentLimits.get(k) !== v);
+
+  if (!changed.length) return toast('warn', 'These are already the scooter\'s current limits.');
+
+  await runProfile(customProfile(Object.fromEntries(changed)));
 }
 
 function renderTuningProfiles() {
@@ -264,16 +384,20 @@ function renderTuningProfiles() {
 
 async function applyProfile(profile) {
   if (!state.scooter) return toast('warn', 'Connect to a scooter first.');
+  await runProfile(profile);
+}
 
-  const { blockers, warnings, ok } = state.tuner.validate(profile);
-  const summary = Object.entries(profile.limits)
-    .map(([key, v]) => {
-      const def = state.scooter.registers.find((r) => r.key === key);
-      return `${def?.label ?? key} → ${v} km/h`;
-    });
+/** Confirm a set of limits, then write them. Shared by presets and the editor. */
+async function runProfile(profile) {
+  const { blockers, warnings, ok } = state.tuner.validate(profile, state.currentLimits);
+  const summary = Object.entries(profile.limits).map(([key, v]) => {
+    const def = state.scooter.registers.find((r) => r.key === key);
+    const from = state.currentLimits.get(key);
+    return `${def?.label ?? key}: ${from ?? '?'} → ${v} km/h`;
+  });
 
   showModal({
-    title: ok ? `Apply “${profile.label}”?` : 'Cannot apply this profile',
+    title: ok ? `Apply “${profile.label}”?` : 'Cannot apply these limits',
     body: summary,
     blockers,
     warnings,
@@ -281,7 +405,8 @@ async function applyProfile(profile) {
     onConfirm: async () => {
       try {
         setLink('busy', 'Writing');
-        await state.tuner.apply(profile);
+        await state.tuner.apply(profile, state.currentLimits);
+        state.edited.clear();
         toast('ok', `${profile.label} applied and verified.`);
       } catch (err) {
         toast('err', err.message);

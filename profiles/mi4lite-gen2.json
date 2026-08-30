@@ -21,7 +21,8 @@
 
   "limits": {
     "stockKmh": 25,
-    "hardCeilingKmh": 32,
-    "//": "hardCeilingKmh is the app's own refusal point, not a firmware value. The 4 Lite's drum/e-ABS braking and 8.5in tyres are specced around the 25 km/h stock limit."
+    "warnAboveKmh": 32,
+    "hardCeilingKmh": 40,
+    "//": "Neither number is a firmware value. hardCeilingKmh is where this app stops accepting input; warnAboveKmh is where it starts warning loudly. The 4 Lite's drum/e-ABS braking and 8.5in tyres are specced around the 25 km/h stock limit, and its ~300 W motor runs out of pull around 30-32 km/h on the flat, so a cap above that removes the restriction rather than adding speed."
   }
 }

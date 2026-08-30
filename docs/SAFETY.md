@@ -4,14 +4,26 @@ Short version: the scooter is yours and modifying it is your call. These are the
 things worth knowing before you do, and the reasoning behind the limits the app
 enforces on itself.
 
+## The limit is a cap, not a target
+
+Setting Sport to 40 does not make the scooter do 40. The 4 Lite's motor is
+~300 W nominal, and on the flat it runs out of pull somewhere around 30–32 km/h.
+A cap above that removes the restriction; it does not add speed. What it does
+change is that the controller will hold full power for longer, which is where
+the heat and range costs come from.
+
+Downhill is the exception, and it is the case worth thinking about: the cap is
+also what limits how fast the scooter will let itself roll under gravity.
+
 ## What actually changes at higher speeds
 
 The 4 Lite's brakes (drum rear plus regenerative e-ABS front), 8.5in tyres and
 suspension geometry are specified around its 25 km/h stock limit.
 
-- **Braking distance scales with the square of speed.** 32 km/h is ~1.6× the
-  stock speed, so roughly 2.6× the kinetic energy and roughly double the stopping
-  distance — on a braking system that was not sized for it.
+- **Braking distance scales with the square of speed.** 32 km/h is ~1.3× the
+  stock speed, so ~1.6× the kinetic energy and ~1.6× the stopping distance. At a
+  40 km/h setting it is 2.6× the energy and roughly 2.6× the distance — on a
+  braking system that was not sized for any of it.
 - **Motor and controller heat scale sharply with speed.** Sustained full throttle
   above stock will run the controller hotter and, on a long ride, may trigger
   thermal cutback — which arrives as an abrupt loss of power.
@@ -38,8 +50,10 @@ Modifying the firmware voids the manufacturer's warranty.
   the older M365 generation are marked `candidate` and blocked. Only addresses
   you have confirmed on your own scooter via snapshot-diff are `derived` and
   freely writable. Expert mode overrides this deliberately and loudly.
-- **A hard ceiling of 32 km/h**, from the device profile. This is the app's
-  refusal point, not a hardware limit.
+- **A hard ceiling of 40 km/h**, from the device profile, and a warning
+  threshold at 32. Both are the app's own numbers, not hardware limits: above
+  the threshold it applies the value but says plainly what changes, and above
+  the ceiling it refuses. Edit `profiles/mi4lite-gen2.json` to move either.
 - **Every write is read back** and flagged if it does not match. Applying a
   profile stops at the first write that fails to verify rather than continuing.
 - **Every write is logged with its previous value**, and *Revert everything*

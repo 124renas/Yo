@@ -307,3 +307,44 @@ table.diff .btn { padding: 6px 9px; min-height: 0; font-size: 0.72rem; }
   .tabs { top: 66px; }
   .tab { flex: 0 1 140px; }
 }
+
+/* ------------------------------------------------------------ mode editor --- */
+.mode-editor { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+
+.mode-row {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 11px 12px;
+}
+.mode-row.dirty { border-color: var(--accent-dim); }
+.mode-row.over { border-color: #5a4a1a; }
+
+.mode-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.mode-name { font-size: 0.86rem; font-weight: 600; }
+.mode-current { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); }
+
+.mode-controls { display: flex; align-items: center; gap: 10px; margin-top: 9px; }
+.mode-controls input[type="range"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  accent-color: var(--accent);
+  height: 26px;
+}
+.mode-row.over .mode-controls input[type="range"] { accent-color: var(--warn); }
+.mode-controls input[type="number"] {
+  flex: 0 0 66px;
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 1rem;
+  text-align: center;
+  padding: 8px 4px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+.mode-controls input[type="number"]:focus { outline: 2px solid var(--accent-dim); outline-offset: 1px; }
+.mode-controls .unit { font-size: 0.72rem; color: var(--muted); flex: 0 0 auto; }
+
+.mode-note { margin: 8px 0 0; font-size: 0.72rem; color: var(--warn); line-height: 1.45; }

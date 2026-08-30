@@ -157,6 +157,50 @@ try {
     'Sport limit back to 25'
   );
 
+  // Per-mode editor: set Drive and Sport independently and write them together.
+  await wait('document.querySelectorAll("#modeEditor .mode-row").length === 3', 'mode editor to render');
+  assert.equal(await evaluate('document.getElementById("applyCustomBtn").disabled'), true,
+    'nothing to write until something is actually changed');
+
+  const setMode = (key, value) => evaluate(`
+    (() => {
+      const row = document.querySelector('.mode-row[data-key="${key}"]');
+      const box = row.querySelector('input[type=number]');
+      box.value = ${value};
+      box.dispatchEvent(new Event('change'));
+      return row.querySelector('input[type=range]').value;
+    })()
+  `);
+
+  assert.equal(await setMode('limitDrive', 25), '25', 'slider follows the number box');
+  assert.equal(await setMode('limitSport', 40), '40', 'Sport accepts 40');
+  assert.equal(await evaluate('document.getElementById("applyCustomBtn").disabled'), false,
+    'editing enables the write button');
+  assert.equal(
+    await evaluate(`document.querySelector('.mode-row[data-key="limitSport"]').classList.contains('over')`),
+    true, 'Sport at 40 is flagged as past the motor limit');
+
+  // Values above the ceiling are clamped rather than sent.
+  assert.equal(await setMode('limitSport', 99), '40', 'input above the ceiling clamps to 40');
+
+  await evaluate('document.getElementById("applyCustomBtn").click()');
+  await wait('!document.getElementById("modalBackdrop").hidden', 'custom apply dialog');
+  const customBody = await evaluate('document.getElementById("modalBody").textContent');
+  assert.match(customBody, /Sport: 25 → 40 km\/h/, 'the dialog shows the per-mode change');
+  assert.match(customBody, /motor is the limit rather than the setting/, 'and the motor-limit warning');
+  await evaluate('document.getElementById("modalConfirm").click()');
+
+  await wait(
+    `Array.from(document.querySelectorAll('#currentLimits .limit')).some(c => c.textContent.includes('Sport') && c.querySelector('.value').textContent.includes('40'))`,
+    'Sport limit to reach 40'
+  );
+  const afterCustom = await evaluate(`
+    Array.from(document.querySelectorAll('#currentLimits .limit'))
+      .map(c => c.querySelector('.name').textContent + '=' + c.querySelector('.value').textContent.replace(/[^0-9]/g,''))
+  `);
+  assert.ok(afterCustom.includes('Drive=25'), `Drive is 25 (got ${afterCustom})`);
+  assert.ok(afterCustom.includes('Sport=40'), `Sport is 40 (got ${afterCustom})`);
+
   // Discovery sweep renders the address map.
   await evaluate('document.querySelector(\'[data-panel="discovery"]\').click()');
   await evaluate('document.getElementById("sweepFrom").value = "0x70"; document.getElementById("sweepTo").value = "0x7F";');

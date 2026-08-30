@@ -74,7 +74,17 @@
     </div>
 
     <div class="card">
-      <h2>Profiles</h2>
+      <h2>Per-mode limits</h2>
+      <p class="hint">Set each drive mode on its own, then write them together. Drive 25 / Sport 40, for example.</p>
+      <div id="modeEditor" class="mode-editor"><p class="hint">Connect to edit the limits.</p></div>
+      <div class="row">
+        <button class="btn btn-primary" id="applyCustomBtn" disabled>Write these limits</button>
+        <button class="btn btn-quiet" id="resetCustomBtn">Reset to scooter</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Presets</h2>
       <div id="profileList" class="profiles"></div>
     </div>
 

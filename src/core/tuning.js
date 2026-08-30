@@ -37,12 +37,44 @@ export const PROFILES = [
     id: 'max',
     label: 'Motor limit (32)',
     description:
-      'As fast as the 4 Lite drivetrain will sustain. Braking distance roughly doubles versus stock; ' +
-      'expect noticeably shorter range and a hotter controller.',
+      'Drive 25, Sport 32 — about as fast as the 4 Lite drivetrain will sustain on the flat. Braking ' +
+      'distance roughly doubles versus stock; expect shorter range and a hotter controller.',
     limits: { limitEco: 10, limitDrive: 25, limitSport: 32 },
     requiresAcknowledgement: true,
   },
+  {
+    id: 'uncapped',
+    label: 'Uncapped (40)',
+    description:
+      'Drive 25, Sport 40. Above ~32 km/h the motor is the limit rather than the setting, so this ' +
+      'removes the restriction rather than adding speed.',
+    limits: { limitEco: 10, limitDrive: 25, limitSport: 40 },
+    requiresAcknowledgement: true,
+  },
 ];
+
+/** Build a one-off profile from limits typed into the per-mode editor. */
+export function customProfile(limits) {
+  return {
+    id: 'custom',
+    label: 'Custom limits',
+    description: 'Per-mode limits set by hand.',
+    limits,
+    requiresAcknowledgement: Object.values(limits).some((v) => v > 25),
+  };
+}
+
+/** The modes the per-mode editor offers, in the order they appear. */
+export const MODE_KEYS = ['limitEco', 'limitDrive', 'limitSport'];
+
+const MODE_LABELS = {
+  limitEco: 'Eco',
+  limitDrive: 'Drive',
+  limitSport: 'Sport',
+  limitGlobal: 'Global cap',
+};
+
+const label = (key) => MODE_LABELS[key] ?? key;
 
 export class Tuner extends Emitter {
   constructor(scooter, { expertMode = false } = {}) {
@@ -55,11 +87,20 @@ export class Tuner extends Emitter {
     return this.scooter.profile.limits?.hardCeilingKmh ?? 32;
   }
 
+  /** Above this the app still applies the value, but says plainly what changes. */
+  get warnAbove() {
+    return this.scooter.profile.limits?.warnAboveKmh ?? 25;
+  }
+
+  get stockLimit() {
+    return this.scooter.profile.limits?.stockKmh ?? 25;
+  }
+
   /**
    * Check a profile can be applied. Returns a list of blocking problems and a
    * list of things worth warning about; empty blockers means it is safe to run.
    */
-  validate(profile) {
+  validate(profile, current = null) {
     const blockers = [];
     const warnings = [];
 
@@ -85,18 +126,52 @@ export class Tuner extends Emitter {
       }
     }
 
+    // Modes are supposed to step upwards. A Drive limit above Sport is more
+    // often a typo than an intention, and firmwares differ on how they cope.
+    const ordered = ['limitEco', 'limitDrive', 'limitSport'].filter((k) => k in profile.limits);
+    for (let i = 1; i < ordered.length; i++) {
+      const [lower, higher] = [ordered[i - 1], ordered[i]];
+      if (profile.limits[lower] > profile.limits[higher]) {
+        warnings.push(
+          `${label(lower)} (${profile.limits[lower]}) is set higher than ${label(higher)} ` +
+            `(${profile.limits[higher]}). That is allowed, but it means the "faster" mode is the slower one.`
+        );
+      }
+    }
+
+    // A global cap, where the firmware has one, clamps the per-mode limits.
+    const globalCap = current?.get?.('limitGlobal');
+    const highestMode = Math.max(...ordered.map((k) => profile.limits[k]), 0);
+    if (globalCap != null && highestMode > globalCap && !('limitGlobal' in profile.limits)) {
+      warnings.push(
+        `The global cap is currently ${globalCap} km/h, which is below the ${highestMode} km/h you are setting. ` +
+          `On firmwares that honour it, the cap wins and the mode limit will have no effect — raise it too if ` +
+          `nothing changes.`
+      );
+    }
+
+    const overWarn = Object.entries(profile.limits).filter(([, v]) => v > this.warnAbove);
+    if (overWarn.length) {
+      warnings.push(
+        `${overWarn.map(([k, v]) => `${label(k)} ${v} km/h`).join(', ')} — past roughly ${this.warnAbove} km/h ` +
+          `the ~300 W motor is the limit rather than the setting, so this removes the restriction rather than ` +
+          `adding speed. The controller will run hotter and range will drop noticeably.`
+      );
+    }
+
     if (profile.requiresAcknowledgement) {
       warnings.push(
-        'Above the stock limit the brakes, tyres and lights are outside their design envelope, and in most ' +
-          'places this makes the scooter road-illegal. Private land only.'
+        `Above the ${this.stockLimit} km/h stock limit the brakes, tyres and lights are outside their design ` +
+          `envelope — stopping distance grows with the square of speed — and in most places this makes the ` +
+          `scooter road-illegal. Private land only.`
       );
     }
     return { blockers, warnings, ok: blockers.length === 0 };
   }
 
   /** Apply a profile, stopping at the first write that does not read back. */
-  async apply(profile) {
-    const { blockers } = this.validate(profile);
+  async apply(profile, current = null) {
+    const { blockers } = this.validate(profile, current);
     if (blockers.length) throw new Error(blockers.join('\n'));
 
     const applied = [];
