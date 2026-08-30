@@ -201,6 +201,50 @@ try {
   assert.ok(afterCustom.includes('Drive=25'), `Drive is 25 (got ${afterCustom})`);
   assert.ok(afterCustom.includes('Sport=40'), `Sport is 40 (got ${afterCustom})`);
 
+  // Flash tab: file validation and the enable-gating (no real serial in headless).
+  await evaluate('document.querySelector(\'[data-panel="flash"]\').click()');
+  await wait('document.getElementById("fwFile")', 'flash tab to render');
+  assert.equal(await evaluate('document.getElementById("flashBtn").disabled'), true,
+    'flash is disabled with no firmware and no adapter');
+
+  // Load the valid mock firmware programmatically through the same code path.
+  const fwBytes = fs.readFileSync(path.join(ROOT, 'tests/fixtures/mock-fw.bin'));
+  await evaluate(`
+    (async () => {
+      const bytes = new Uint8Array([${Array.from(fwBytes).join(',')}]);
+      const file = new File([bytes], 'patched.bin');
+      const input = document.getElementById('fwFile');
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      input.files = dt.files;
+      input.dispatchEvent(new Event('change'));
+      // give the async reader a tick
+      await new Promise(r => setTimeout(r, 50));
+    })()
+  `);
+  await wait('!document.getElementById("fwInfo").hidden', 'firmware info to show');
+  assert.match(await evaluate('document.getElementById("fwInfo").textContent'), /Brightway MCU/,
+    'valid firmware is recognised as Brightway');
+  assert.equal(await evaluate('document.getElementById("fwDrop").classList.contains("loaded")'), true,
+    'drop zone shows loaded state');
+
+  // A junk file must be rejected.
+  await evaluate(`
+    (async () => {
+      const bytes = new Uint8Array(4096);
+      const file = new File([bytes], 'junk.bin');
+      const input = document.getElementById('fwFile');
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      input.files = dt.files;
+      input.dispatchEvent(new Event('change'));
+      await new Promise(r => setTimeout(r, 50));
+    })()
+  `);
+  await wait('document.getElementById("fwDrop").classList.contains("bad")', 'junk firmware rejected');
+  assert.equal(await evaluate('document.getElementById("flashBtn").disabled'), true,
+    'flash stays disabled after a rejected file');
+
   // Discovery sweep renders the address map.
   await evaluate('document.querySelector(\'[data-panel="discovery"]\').click()');
   await evaluate('document.getElementById("sweepFrom").value = "0x70"; document.getElementById("sweepTo").value = "0x7F";');

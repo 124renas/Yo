@@ -26,6 +26,7 @@
 <nav class="tabs" role="tablist">
   <button class="tab is-active" data-panel="connect" role="tab">Connect</button>
   <button class="tab" data-panel="speed" role="tab">Speed</button>
+  <button class="tab" data-panel="flash" role="tab">Flash</button>
   <button class="tab" data-panel="discovery" role="tab">Discovery</button>
   <button class="tab" data-panel="console" role="tab">Console</button>
 </nav>
@@ -107,6 +108,46 @@
           raise the limit — it writes into whatever else lives there.</em>
         </span>
       </label>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------------ Flash -->
+  <section class="panel" id="panel-flash">
+    <div class="card note-card">
+      <h2>Read this first</h2>
+      <ul class="notes">
+        <li><strong>This is a wired flash, not Bluetooth.</strong> A modified firmware can't go over Bluetooth — the scooter's radio chip checks a Xiaomi signature and rejects it. Flashing goes over the controller's UART.</li>
+        <li>You need a <strong>USB‑to‑TTL adapter</strong> (CP2102 or CH340, a few dollars) wired to the controller's UART pads: GND↔GND, adapter TX↔RX, adapter RX↔TX. 3.3V logic.</li>
+        <li><strong>Back up your stock firmware first.</strong> Download the exact stock <code>.bin</code> for your scooter from mi‑fw‑info and keep it — flashing it back is your undo.</li>
+        <li>Desktop <strong>Chrome or Edge</strong> only (Web Serial). A failed flash can leave the controller needing a re‑flash; keep it powered and connected until it finishes.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>1 · Patched firmware</h2>
+      <p class="hint">Load the <strong>patched</strong> MCU <code>.bin</code> — stock firmware still has the limit. Patch it on bw‑patcher (pick “remove speed limit”, and set Drive/Sport), then load the result here.</p>
+      <label class="file-drop" id="fwDrop">
+        <input type="file" id="fwFile" accept=".bin" hidden />
+        <span id="fwDropText">Choose or drop a .bin file</span>
+      </label>
+      <dl class="kv" id="fwInfo" hidden></dl>
+    </div>
+
+    <div class="card">
+      <h2>2 · Serial adapter</h2>
+      <div class="row">
+        <button class="btn" id="serialConnectBtn">Connect serial adapter</button>
+        <span class="mode-current" id="serialState">not connected</span>
+      </div>
+      <p class="hint" id="serialHint"></p>
+    </div>
+
+    <div class="card">
+      <h2>3 · Flash</h2>
+      <button class="btn btn-danger" id="flashBtn" disabled>Flash firmware</button>
+      <div class="progress" id="flashProgress" hidden><div class="bar"></div><span></span></div>
+      <p class="mode-current" id="flashStatus"></p>
+      <pre id="flashLog" class="traffic" hidden></pre>
     </div>
   </section>
 

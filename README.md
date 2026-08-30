@@ -27,7 +27,22 @@ offline.
 **No scooter to hand?** Press **Use simulator**. It runs a simulated controller
 that speaks the real protocol, so every part of the app works end to end.
 
-## Setting the limits
+## Two ways in, depending on your scooter
+
+**If your 4 Lite is a 2024 Brightway model (most are), the speed limit is in the
+MCU firmware** — it is not a writable register, and it cannot be changed over
+Bluetooth because the radio chip signature-checks firmware. The real unlock is a
+**wired firmware flash**, which this app now does from the browser over Web
+Serial (see the **Flash** tab and [docs/FLASHING.md](docs/FLASHING.md)). You
+supply the patched `.bin` (patched on [bw-patcher](https://github.com/scooterteam/bw-patcher));
+the app flashes it over a ~$3 USB-to-TTL adapter.
+
+**The BLE register tools below** (Speed / Discovery / Console) are for the older
+M365/Pro-era scooters that expose the limit as a live register, and as a
+diagnostics companion. On a Brightway 4 Lite they will not move the limit — use
+the Flash tab.
+
+## Setting the limits (register-based scooters)
 
 Each drive mode has its own register, so they are set independently — Drive 25
 with Sport 40 is two boxes on the **Speed** tab, not a preset someone had to
@@ -80,6 +95,16 @@ completing this one — is a JSON change.
 
 See [docs/PROTOCOL.md](docs/PROTOCOL.md) for the wire formats.
 
+## Flashing (Brightway 4 Lite)
+
+The **Flash** tab runs the Brightway MCU DFU protocol over Web Serial — a
+faithful, tested port of [ScooterTeam's bw-flasher](https://github.com/scooterteam/bw-flasher).
+It loads a patched `.bin`, validates it as a Brightway image, authenticates to
+the bootloader (challenge/response, verified byte-for-byte against the original),
+and streams the image in CRC-checked chunks with a progress log. It is a **wired**
+flash — USB-to-TTL adapter, not Bluetooth, because modified firmware can't pass
+the BLE signature check. Full walkthrough in [docs/FLASHING.md](docs/FLASHING.md).
+
 ## Safety
 
 Speed limits above stock are for private land in most jurisdictions, and the
@@ -99,6 +124,8 @@ misbehaves.
 ```bash
 node tests/aes.test.js          # FIPS-197 vectors for the bundled AES
 node tests/integration.test.js  # read -> gate -> apply -> verify -> revert -> discover
+node tests/flash.test.js        # CRC16/CRC32 + auth vs. the ScooterTeam reference
+node tests/flash-e2e.test.js    # full DFU flash through a simulated bootloader
 node tests/ui.smoke.mjs         # drives the real UI in headless Chromium
 ```
 
@@ -108,3 +135,16 @@ No test runner and no dependencies — they are plain Node scripts.
 
 No network calls, no telemetry, no accounts. Confirmed register addresses are
 stored in your browser's local storage and nowhere else.
+
+
+## Credits
+
+Firmware patching, the DFU flashing protocol, and the Brightway reverse
+engineering are the work of others; this app ports their flashing protocol to the
+browser and does not replace their tools:
+
+- [ScooterTeam](https://github.com/scooterteam) — bw-patcher and bw-flasher (CC BY-NC-SA 4.0)
+- [RoboCoffee](https://robocoffee.de/) — Brightway security analysis
+
+Use bw-patcher to produce the patched firmware; use this app's Flash tab (or
+bw-flasher) to write it.

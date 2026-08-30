@@ -8,6 +8,8 @@ import { Tuner, PROFILES, MODE_KEYS, customProfile } from '../core/tuning.js';
 import { Confidence, DEVICE_NAMES } from '../proto/registers.js';
 import { Addr } from '../proto/frame.js';
 import { IncompleteProfileError } from '../proto/session.js';
+import { WebSerialLink } from '../flash/webserial.js';
+import { BrightwayDFU, inspectFirmware, FlasherError } from '../flash/brightway-dfu.js';
 
 const $ = (id) => document.getElementById(id);
 const el = (tag, className, text) => {
@@ -31,6 +33,7 @@ const state = {
   edited: new Map(),        // key -> value typed into the per-mode editor
   snapshots: { A: null, B: null },
   expertMode: false,
+  flash: { firmware: null, info: null, link: null, busy: false },
 };
 
 // ---------------------------------------------------------------- bootstrap ---
@@ -50,6 +53,7 @@ async function init() {
   setupSpeed();
   setupDiscovery();
   setupConsole();
+  setupFlash();
   renderTuningProfiles();
 
   if (!BleTransport.available) {
@@ -700,6 +704,148 @@ function logTraffic(dir, payload, phase = '') {
   if ($('autoscroll').checked) pre.scrollTop = pre.scrollHeight;
 }
 
+// ------------------------------------------------------------------- flash ---
+
+function setupFlash() {
+  const drop = $('fwDrop');
+  const input = $('fwFile');
+
+  input.addEventListener('change', () => input.files[0] && loadFirmware(input.files[0]));
+  drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('loaded'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('loaded'));
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) loadFirmware(file);
+  });
+
+  $('serialConnectBtn').addEventListener('click', connectSerial);
+  $('flashBtn').addEventListener('click', runFlash);
+
+  if (!WebSerialLink.available) {
+    $('serialHint').textContent =
+      'This browser has no Web Serial, so flashing is unavailable here. Use Chrome or Edge on a desktop OS.';
+    $('serialConnectBtn').disabled = true;
+  }
+}
+
+async function loadFirmware(file) {
+  const drop = $('fwDrop');
+  try {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const info = inspectFirmware(bytes);
+
+    if (info.type !== 'brightway') {
+      drop.className = 'file-drop bad';
+      $('fwDropText').textContent = `${file.name} — not a Brightway image`;
+      $('fwInfo').hidden = true;
+      state.flash.firmware = null;
+      toast('err', 'That file is not a recognised Brightway MCU firmware. Load the patched .bin from bw-patcher.');
+      updateFlashButton();
+      return;
+    }
+
+    state.flash.firmware = bytes;
+    state.flash.info = info;
+    drop.className = 'file-drop loaded';
+    $('fwDropText').textContent = `${file.name} — loaded`;
+
+    const dl = $('fwInfo');
+    dl.hidden = false;
+    dl.replaceChildren();
+    const rows = [
+      ['File', file.name],
+      ['Size', `${(bytes.length / 1024).toFixed(1)} KB`],
+      ['Type', 'Brightway MCU'],
+      ['Model tag', info.model || '—'],
+      ['Auth tables', info.offsets ? `0x${info.offsets[0].toString(16)}, 0x${info.offsets[1].toString(16)}` : 'not found'],
+    ];
+    for (const [k, v] of rows) { dl.append(el('dt', null, k)); dl.append(el('dd', null, v)); }
+
+    toast('ok', 'Firmware looks valid. Connect the adapter to enable flashing.');
+    updateFlashButton();
+  } catch (err) {
+    toast('err', `Could not read the file: ${err.message}`);
+  }
+}
+
+async function connectSerial() {
+  try {
+    const link = new WebSerialLink();
+    const label = await link.open({ baudRate: 19200 });
+    state.flash.link = link;
+    $('serialState').textContent = `connected · ${label}`;
+    $('serialHint').textContent = 'Adapter open at 19200 baud. Make sure the controller is powered on.';
+    toast('ok', 'Serial adapter connected.');
+    updateFlashButton();
+  } catch (err) {
+    if (err.name !== 'NotFoundError') toast('err', err.message);
+  }
+}
+
+function updateFlashButton() {
+  $('flashBtn').disabled = !(state.flash.firmware && state.flash.link && !state.flash.busy);
+}
+
+async function runFlash() {
+  if (!state.flash.firmware || !state.flash.link) return;
+
+  const proceed = await confirmModal({
+    title: 'Flash this firmware now?',
+    body: [
+      `${(state.flash.firmware.length / 1024).toFixed(1)} KB will be written to the controller over the serial adapter.`,
+      'Do not disconnect the adapter or power off the scooter until this finishes.',
+    ],
+    warnings: [
+      'If you have not already saved your stock firmware, cancel and back it up first — re-flashing it is your only undo.',
+    ],
+    confirmText: 'Flash now',
+  });
+  if (!proceed) return;
+
+  state.flash.busy = true;
+  updateFlashButton();
+  const progress = $('flashProgress');
+  const log = $('flashLog');
+  progress.hidden = false;
+  log.hidden = false;
+  log.textContent = '';
+  setLink('busy', 'Flashing');
+
+  const append = (line) => {
+    log.append(el('span', 'rx', line + '\n'));
+    log.scrollTop = log.scrollHeight;
+  };
+
+  const dfu = new BrightwayDFU(state.flash.link, state.flash.firmware, {
+    onState: (_s, text) => { $('flashStatus').textContent = text; append(`» ${text}`); },
+    onProgress: (pct) => {
+      progress.querySelector('.bar').style.setProperty('--pct', `${pct}%`);
+      progress.querySelector('span').textContent = `${pct}%`;
+    },
+    onLog: (m) => append(m),
+  });
+
+  try {
+    await dfu.testConnection();
+    await dfu.run();
+    $('flashStatus').textContent = 'Done — new firmware active.';
+    toast('ok', 'Flash complete. The controller is running the new firmware.');
+  } catch (err) {
+    $('flashStatus').textContent = `Stopped: ${err.message}`;
+    append(`✗ ${err.message}`);
+    if (err instanceof FlasherError) {
+      toast('err', err.message);
+    } else {
+      toast('err', `Flash error: ${err.message}`);
+    }
+  } finally {
+    state.flash.busy = false;
+    updateFlashButton();
+    setLink(state.scooter ? 'connected' : 'offline', state.scooter?.transport.deviceName ?? 'Not connected');
+  }
+}
+
 // ----------------------------------------------------------------- chrome ---
 
 function setLink(stateName, text) {
@@ -742,6 +888,26 @@ function showModal({ title, body = [], bodyNode, blockers = [], warnings = [], c
   };
   $('modalCancel').onclick = close;
   backdrop.hidden = false;
+}
+
+/** Promise-based confirm dialog on top of showModal. Resolves true/false. */
+function confirmModal({ title, body = [], warnings = [], confirmText = 'Confirm' }) {
+  return new Promise((resolve) => {
+    let decided = false;
+    showModal({
+      title, body, warnings, confirmText,
+      onConfirm: () => { decided = true; resolve(true); },
+    });
+    // Cancel path: watch the backdrop hiding without a confirm.
+    const backdrop = $('modalBackdrop');
+    const observer = new MutationObserver(() => {
+      if (backdrop.hidden) {
+        observer.disconnect();
+        if (!decided) resolve(false);
+      }
+    });
+    observer.observe(backdrop, { attributes: true, attributeFilter: ['hidden'] });
+  });
 }
 
 function toast(kind, message) {

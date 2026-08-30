@@ -348,3 +348,20 @@ table.diff .btn { padding: 6px 9px; min-height: 0; font-size: 0.72rem; }
 .mode-controls .unit { font-size: 0.72rem; color: var(--muted); flex: 0 0 auto; }
 
 .mode-note { margin: 8px 0 0; font-size: 0.72rem; color: var(--warn); line-height: 1.45; }
+
+/* ----------------------------------------------------------------- flash --- */
+.file-drop {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 76px;
+  padding: 16px;
+  text-align: center;
+  border: 1.5px dashed var(--line);
+  border-radius: 12px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+  background: var(--surface-2);
+}
+.file-drop:hover { border-color: #3a4857; }
+.file-drop.loaded { border-style: solid; border-color: var(--accent-dim); color: var(--text); }
+.file-drop.bad { border-color: #5a2226; color: var(--danger); }

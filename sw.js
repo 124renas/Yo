@@ -1,7 +1,7 @@
 // Cache-first service worker so the app opens with no signal — which is where
 // you tend to be when working on a scooter.
 
-const CACHE = 'scoot-unlock-v1';
+const CACHE = 'scoot-unlock-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -19,6 +19,11 @@ const ASSETS = [
   './src/core/scooter.js',
   './src/core/discovery.js',
   './src/core/tuning.js',
+  './src/flash/crc.js',
+  './src/flash/keygen.js',
+  './src/flash/brightway-dfu.js',
+  './src/flash/webserial.js',
+  './src/flash/mock-mcu.js',
   './src/ui/app.js',
 ];
 
